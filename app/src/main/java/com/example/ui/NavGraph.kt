@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.LockClock
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -28,6 +29,7 @@ import com.example.domain.models.ConnectionState
 import androidx.compose.runtime.collectAsState
 import com.example.ui.dashboard.DashboardScreen
 import com.example.ui.reservation.ReservationScreen
+import com.example.ui.analytics.AnalyticsScreen
 import com.example.ui.theme.BottomNavBg
 import com.example.ui.theme.Emerald500
 import com.example.ui.theme.Zinc500
@@ -35,11 +37,13 @@ import com.example.ui.theme.Zinc500
 sealed class Screen(val route: String, val title: String, val icon: ImageVector?) {
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Dashboard)
     object Reservation : Screen("reservation", "Reserve", Icons.Filled.LockClock)
+    object Analytics : Screen("analytics", "Analytics", Icons.Filled.Analytics)
 }
 
 val items = listOf(
     Screen.Dashboard,
-    Screen.Reservation
+    Screen.Reservation,
+    Screen.Analytics
 )
 
 @Composable
@@ -90,6 +94,7 @@ fun NavGraph() {
         ) {
             composable(Screen.Dashboard.route) { DashboardScreen(viewModel) }
             composable(Screen.Reservation.route) { ReservationScreen(viewModel) }
+            composable(Screen.Analytics.route) { AnalyticsScreen(viewModel) }
         }
     }
 }
