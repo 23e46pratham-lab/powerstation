@@ -98,8 +98,6 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         if (connectionState != ConnectionState.CONNECTED) {
             DisconnectedHeaderCard(connectionState) {
                 if (connectionState == ConnectionState.DISCONNECTED) {
@@ -108,12 +106,9 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
                     viewModel.disconnect()
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         BatteryGauge(soc = batteryData.soc)
-
-        Spacer(modifier = Modifier.height(12.dp))
 
         StatusCard(status = batteryData.status.name, powerWatts = batteryData.powerWatts)
 
@@ -132,6 +127,15 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
 
         PredictionsSection(
             currentLoadRuntime = PredictionEngine.calculateCurrentLoadRuntime(batteryData)
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        OtherPredictionsSection(
+            mobilePhone = PredictionEngine.calculateDeviceRuntime(batteryData, 15f),
+            laptop = PredictionEngine.calculateDeviceRuntime(batteryData, 65f),
+            earbuds = PredictionEngine.calculateDeviceRuntime(batteryData, 3f),
+            smartwatch = PredictionEngine.calculateDeviceRuntime(batteryData, 10f)
         )
         
         Spacer(modifier = Modifier.height(32.dp))
@@ -393,19 +397,53 @@ fun PredictionsSection(currentLoadRuntime: String) {
         }
         Spacer(modifier = Modifier.height(8.dp))
         
-        PredictionBox("Current Load", currentLoadRuntime, true)
+        PredictionBox("Current Load", currentLoadRuntime, true, modifier = Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun PredictionBox(title: String, value: String, isPrimary: Boolean) {
+fun OtherPredictionsSection(mobilePhone: String, laptop: String, earbuds: String, smartwatch: String) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "OTHER PREDICTIONS",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                color = Zinc400
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                PredictionBox("Mobile Phone", mobilePhone, false, modifier = Modifier.width(130.dp))
+            }
+            item {
+                PredictionBox("Laptop", laptop, false, modifier = Modifier.width(130.dp))
+            }
+            item {
+                PredictionBox("Earbuds", earbuds, false, modifier = Modifier.width(130.dp))
+            }
+            item {
+                PredictionBox("Smartwatch", smartwatch, false, modifier = Modifier.width(130.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun PredictionBox(title: String, value: String, isPrimary: Boolean, modifier: Modifier = Modifier) {
     val bgColor = if (isPrimary) Emerald600.copy(alpha = 0.1f) else DarkSurface
     val borderColor = if (isPrimary) Emerald500.copy(alpha = 0.2f) else Zinc800
     val titleColor = if (isPrimary) Emerald400 else Zinc400
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .background(bgColor, RoundedCornerShape(16.dp))
             .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .padding(12.dp)
