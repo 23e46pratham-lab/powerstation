@@ -1,0 +1,35 @@
+# Local IDE files
+*.iml
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+
+# Gradle cache (but NOT the wrapper — that needs to be committed)
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
+
+# Kotlin incremental compilation cache
+.kotlin/
+
+# Local config (never commit these)
+local.properties
+.env
+debug.keystore
+
+# macOS
+.DS_Store
+
+# Build outputs
+/build
+/captures
+/app/build
+
+# Native build
+.externalNativeBuild
+.cxx

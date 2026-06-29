@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Power Station",
+  "description": "Portable Power Station Monitoring \u0026 Prediction App",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
