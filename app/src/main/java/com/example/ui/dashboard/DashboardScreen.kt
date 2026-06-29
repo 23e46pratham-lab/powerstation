@@ -83,7 +83,8 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
             current = batteryData.current,
             energyWh = batteryData.remainingEnergyWh,
             capacityAh = batteryData.remainingCapacityAh,
-            temp = batteryData.temperature
+            temp = batteryData.temperature,
+            reservedEnergyWh = batteryData.reservedEnergyWh.toFloat()
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -150,7 +151,7 @@ fun TopBar(connectionState: ConnectionState, onToggle: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "DIY PowerStation v1",
+                text = "WattRoam PowerStation",
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (-0.5).sp),
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -311,7 +312,7 @@ fun StatusCard(status: String, reserved: Int, powerWatts: Float) {
 }
 
 @Composable
-fun MetricsGrid(voltage: Float, current: Float, energyWh: Float, capacityAh: Float, temp: Float) {
+fun MetricsGrid(voltage: Float, current: Float, energyWh: Float, capacityAh: Float, temp: Float, reservedEnergyWh: Float) {
     val formattedTemp = formatTemp(temp)
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -326,7 +327,7 @@ fun MetricsGrid(voltage: Float, current: Float, energyWh: Float, capacityAh: Flo
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricBox("Temperature", formattedTemp, "°C", Modifier.weight(1f))
-            Spacer(modifier = Modifier.weight(1f))
+            MetricBox("Reserved", String.format("%.1f", reservedEnergyWh), "Wh", Modifier.weight(1f))
         }
     }
 }

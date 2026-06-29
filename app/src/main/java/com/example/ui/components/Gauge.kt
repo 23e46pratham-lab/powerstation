@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
@@ -29,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.Emerald500
 import com.example.ui.theme.PowerGreen
-import com.example.ui.theme.PowerRed
 import com.example.ui.theme.PowerYellow
+import com.example.ui.theme.PowerRed
 import com.example.ui.theme.Zinc400
 import com.example.ui.theme.Zinc800
 
@@ -51,12 +52,20 @@ fun BatteryGauge(
             .padding(vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Glow Effect
+        // Glow Effect using a circular radial gradient that gradually fades from center
         Box(
             modifier = Modifier
-                .size(192.dp)
-                .blur(60.dp)
-                .background(Emerald500.copy(alpha = 0.1f), CircleShape)
+                .size(390.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            progressColor.copy(alpha = 0.22f),
+                            progressColor.copy(alpha = 0.08f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
         )
 
         // Gauge Container
