@@ -49,7 +49,7 @@ fun BatteryGauge(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         // Glow Effect using a circular radial gradient that gradually fades from center

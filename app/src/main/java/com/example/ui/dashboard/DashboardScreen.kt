@@ -98,7 +98,7 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (connectionState != ConnectionState.CONNECTED) {
             DisconnectedHeaderCard(connectionState) {
@@ -108,12 +108,12 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
                     viewModel.disconnect()
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         BatteryGauge(soc = batteryData.soc)
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         StatusCard(status = batteryData.status.name, powerWatts = batteryData.powerWatts)
 
@@ -327,9 +327,11 @@ fun DisconnectedHeaderCard(connectionState: ConnectionState, onActionClick: () -
 @Composable
 fun StatusCard(status: String, powerWatts: Float) {
     val isCharging = status == com.example.domain.models.BatteryStatus.CHARGING.name
-    val color = if (isCharging) Emerald400 else Zinc400
-    val bgColor = if (isCharging) Emerald500.copy(alpha=0.1f) else Zinc500.copy(alpha=0.1f)
-    val borderColor = if (isCharging) Emerald500.copy(alpha=0.3f) else Zinc500.copy(alpha=0.3f)
+    val isDischarging = status == com.example.domain.models.BatteryStatus.DISCHARGING.name
+    val isActive = isCharging || isDischarging
+    val color = if (isActive) Emerald400 else Zinc400
+    val bgColor = if (isActive) Emerald500.copy(alpha=0.1f) else Zinc500.copy(alpha=0.1f)
+    val borderColor = if (isActive) Emerald500.copy(alpha=0.3f) else Zinc500.copy(alpha=0.3f)
     
     Row(
         modifier = Modifier
