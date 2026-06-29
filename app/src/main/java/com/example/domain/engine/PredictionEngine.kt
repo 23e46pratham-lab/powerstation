@@ -1,66 +1,73 @@
 package com.example.domain.engine
 
 import com.example.domain.models.BatteryData
+import com.example.domain.models.BatteryStatus
 
 object PredictionEngine {
-    // Current load runtime
+
+    // ─── EMA State ───────────────────────────────────────────────────────────
+    private const val ALPHA = 0.1f          // smoothing factor (0.05 = very smooth, 0.2 = more reactive)
+    private const val MIN_LOAD_WATTS = 5f   // below this = noise, don't calculate
+    private const val INVERTER_EFFICIENCY = 0.88f  // for AC loads through inverter
+
+    private var smoothedPower: Float = 0f
+    private var lastStatus: BatteryStatus? = null
+
+    private fun updateSmoothedPower(voltage: Float, current: Float, status: BatteryStatus) {
+        // Reset EMA when switching from non-discharging to discharging
+        // so stale values from charging don't bleed into runtime estimate
+        if (lastStatus != BatteryStatus.DISCHARGING && status == BatteryStatus.DISCHARGING) {
+            smoothedPower = 0f
+        }
+        lastStatus = status
+
+        val instantPower = voltage * current
+        smoothedPower = if (smoothedPower < 1f) {
+            instantPower                                          // cold start: seed directly
+        } else {
+            (ALPHA * instantPower) + ((1f - ALPHA) * smoothedPower)  // EMA
+        }
+    }
+
+    // ─── Current Load Runtime ─────────────────────────────────────────────────
     fun calculateCurrentLoadRuntime(data: BatteryData): String {
-        // If not discharging, there is no active load to calculate for
-        if (data.status != com.example.domain.models.BatteryStatus.DISCHARGING) return "No Active Load"
-        val power = data.voltage * data.current   // both positive, this gives real watts
-        if (power < 1f) return "--"
+        if (data.status != BatteryStatus.DISCHARGING) {
+            smoothedPower = 0f   // reset when not discharging
+            return "No Active Load"
+        }
         if (data.remainingEnergyWh <= 0f) return "--"
-        val hoursRemaining = data.remainingEnergyWh / power
+
+        updateSmoothedPower(data.voltage, data.current, data.status)
+
+        if (smoothedPower < MIN_LOAD_WATTS) return "--"
+
+        val hoursRemaining = (data.remainingEnergyWh * INVERTER_EFFICIENCY) / smoothedPower
         return formatTime(hoursRemaining)
     }
 
-    // Specific device runtimes
+    // ─── Specific Device Runtime ──────────────────────────────────────────────
     fun calculateDeviceRuntime(data: BatteryData, devicePowerWatts: Float): String {
         if (data.remainingEnergyWh <= 0f || data.soc == 0) return "--"
-        val hoursRemaining = data.remainingEnergyWh / devicePowerWatts
+        if (devicePowerWatts <= 0f) return "--"
+        // Device runtime uses efficiency too since output is AC through inverter
+        val hoursRemaining = (data.remainingEnergyWh * INVERTER_EFFICIENCY) / devicePowerWatts
         return formatTime(hoursRemaining)
     }
 
-    // Device charing (Times)
+    // ─── Device Charging Count ────────────────────────────────────────────────
     fun calculateDeviceCharges(data: BatteryData, deviceCapacityWh: Float): String {
         if (data.remainingEnergyWh <= 0f) return "0 Times"
+        if (deviceCapacityWh <= 0f) return "--"
         val charges = data.remainingEnergyWh / deviceCapacityWh
         return String.format("%.1f Times", charges)
     }
 
+    // ─── Format ───────────────────────────────────────────────────────────────
     private fun formatTime(hoursDecimal: Float): String {
+        if (hoursDecimal <= 0f) return "--"
         val totalMinutes = (hoursDecimal * 60).toLong()
         val hours = totalMinutes / 60
         val minutes = totalMinutes % 60
-        if (hours > 0) {
-            return "$hours Hours $minutes Minutes"
-        }
-        return "$minutes Minutes"
-    }
-
-    fun getIntelligenceSuggestions(data: BatteryData): List<String> {
-        val suggestions = mutableListOf<String>()
-        
-        if (data.voltage < 1f) return emptyList() // no real data yet
-
-        if (data.temperature > 40f) {
-            suggestions.add("Battery temperature is high. Consider reducing load or improving ventilation.")
-        } else if (data.temperature in 15f..35f) {
-            suggestions.add("Battery temperature is optimal.")
-        }
-
-        if (data.soc > 80) {
-            suggestions.add("Battery is healthy and sufficiently charged.")
-        } else if (data.soc < 20) {
-            suggestions.add("Battery should be recharged soon. Runtime is limited.")
-        }
-
-        if (data.status == com.example.domain.models.BatteryStatus.DISCHARGING && data.powerWatts > 200f) { // High discharge
-            suggestions.add("High load detected. This may exhaust the battery quickly.")
-        }
-
-        suggestions.add("Can charge a typical smartphone (15Wh) ~${calculateDeviceCharges(data, 15f).replace(" Times", "")} times.")
-
-        return suggestions
+        return if (hours > 0) "$hours hr $minutes min" else "$minutes min"
     }
 }

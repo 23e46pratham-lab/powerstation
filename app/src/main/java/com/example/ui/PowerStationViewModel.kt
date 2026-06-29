@@ -27,10 +27,6 @@ class PowerStationViewModel(application: Application) : AndroidViewModel(applica
     val batteryData: StateFlow<BatteryData> = repository.batteryData
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), BatteryData())
 
-    val intelligenceSuggestions: StateFlow<List<String>> = repository.batteryData
-        .map { PredictionEngine.getIntelligenceSuggestions(it) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     fun startScan() {
         if (connectionState.value == ConnectionState.DISCONNECTED) {
             repository.startScanningAndConnect()

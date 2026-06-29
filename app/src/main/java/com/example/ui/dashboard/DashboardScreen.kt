@@ -131,49 +131,13 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
         Spacer(modifier = Modifier.height(24.dp))
 
         PredictionsSection(
-            currentLoadRuntime = PredictionEngine.calculateCurrentLoadRuntime(batteryData),
-            laptopRuntime = PredictionEngine.calculateDeviceRuntime(batteryData, 60f),
-            fanRuntime = PredictionEngine.calculateDeviceRuntime(batteryData, 30f),
-            phoneCharges = PredictionEngine.calculateDeviceCharges(batteryData, 15f)
+            currentLoadRuntime = PredictionEngine.calculateCurrentLoadRuntime(batteryData)
         )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        val suggestions by viewModel.intelligenceSuggestions.collectAsState()
-        if (suggestions.isNotEmpty()) {
-            IntelligenceSection(suggestions)
-        }
         
         Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
-@Composable
-fun IntelligenceSection(suggestions: List<String>) {
-    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        Text(
-            text = "Battery Intelligence",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Card(
-            colors = CardDefaults.cardColors(containerColor = DarkSurface),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                suggestions.forEach { suggestion ->
-                    Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = PowerYellow, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = suggestion, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun TopBar(connectionState: ConnectionState, onToggle: () -> Unit) {
@@ -409,7 +373,7 @@ fun MetricBox(label: String, value: String, unit: String, modifier: Modifier = M
 }
 
 @Composable
-fun PredictionsSection(currentLoadRuntime: String, laptopRuntime: String, fanRuntime: String, phoneCharges: String) {
+fun PredictionsSection(currentLoadRuntime: String) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -429,19 +393,7 @@ fun PredictionsSection(currentLoadRuntime: String, laptopRuntime: String, fanRun
         }
         Spacer(modifier = Modifier.height(8.dp))
         
-        androidx.compose.foundation.lazy.LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                PredictionBox("Total Load", currentLoadRuntime, true)
-            }
-            item {
-                PredictionBox("Laptop Charge", laptopRuntime, false)
-            }
-            item {
-                PredictionBox("Fan Runtime", fanRuntime, false)
-            }
-        }
+        PredictionBox("Current Load", currentLoadRuntime, true)
     }
 }
 
@@ -453,7 +405,7 @@ fun PredictionBox(title: String, value: String, isPrimary: Boolean) {
 
     Box(
         modifier = Modifier
-            .width(130.dp)
+            .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(16.dp))
             .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .padding(12.dp)
