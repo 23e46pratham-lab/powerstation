@@ -20,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.example.ui.NavGraph
 import com.example.ui.theme.MyApplicationTheme
+import com.example.utils.SoundManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SoundManager.init()
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme {
@@ -68,5 +70,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        SoundManager.release()
     }
 }

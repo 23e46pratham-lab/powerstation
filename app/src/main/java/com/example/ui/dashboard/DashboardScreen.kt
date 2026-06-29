@@ -28,6 +28,7 @@ import com.example.domain.models.ConnectionState
 import com.example.ui.PowerStationViewModel
 import com.example.ui.components.BatteryGauge
 import com.example.ui.theme.*
+import com.example.utils.SoundManager
 
 @Composable
 fun DashboardScreen(viewModel: PowerStationViewModel) {
@@ -35,10 +36,50 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
     val batteryData by viewModel.batteryData.collectAsState()
     val scrollState = rememberScrollState()
 
-    // Automatically trigger scanning on launch or whenever disconnected
+    var previousConnectionState by remember { mutableStateOf(connectionState) }
+    var previousStatus by remember { mutableStateOf(batteryData.status) }
+    var lowBatteryAlertPlayed by remember { mutableStateOf(false) }
+    var reserveAlertPlayed by remember { mutableStateOf(false) }
+
     LaunchedEffect(connectionState) {
+        if (connectionState != previousConnectionState) {
+            when (connectionState) {
+                ConnectionState.CONNECTED -> SoundManager.playConnectSound()
+                ConnectionState.DISCONNECTED -> SoundManager.playDisconnectSound()
+                else -> {}
+            }
+            previousConnectionState = connectionState
+        }
+        
         if (connectionState == ConnectionState.DISCONNECTED) {
             viewModel.startScan()
+        }
+    }
+
+    LaunchedEffect(batteryData) {
+        if (batteryData.status != previousStatus) {
+            when (batteryData.status) {
+                com.example.domain.models.BatteryStatus.CHARGING -> SoundManager.playChargingStartedSound()
+                com.example.domain.models.BatteryStatus.DISCHARGING -> SoundManager.playDischargingStartedSound()
+                else -> {}
+            }
+            previousStatus = batteryData.status
+        }
+        
+        // Low battery alert (under 15%)
+        if (batteryData.soc <= 15 && !lowBatteryAlertPlayed && connectionState == ConnectionState.CONNECTED) {
+            SoundManager.playLowBatterySound()
+            lowBatteryAlertPlayed = true
+        } else if (batteryData.soc > 15) {
+            lowBatteryAlertPlayed = false
+        }
+        
+        // Reserve Energy cutoff alert
+        if (batteryData.reservedEnergyWh > 0 && batteryData.remainingEnergyWh <= batteryData.reservedEnergyWh && !reserveAlertPlayed) {
+            SoundManager.playCutoffSound()
+            reserveAlertPlayed = true
+        } else if (batteryData.remainingEnergyWh > batteryData.reservedEnergyWh || batteryData.reservedEnergyWh == 0) {
+            reserveAlertPlayed = false
         }
     }
 
