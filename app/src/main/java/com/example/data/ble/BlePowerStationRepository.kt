@@ -70,6 +70,11 @@ class BlePowerStationRepository(
                         currentList + newInfo
                     }
                 }
+
+                if (isPowerStation && _connectionState.value == ConnectionState.SCANNING) {
+                    Log.i(TAG, "Auto-connecting inside app to: $name ($address)")
+                    connectToAddress(address)
+                }
             }
         }
     }
@@ -141,29 +146,36 @@ class BlePowerStationRepository(
         try {
             val str = String(bytes).trim()
             if (str.contains(",")) {
-                // simple csv: V,A,Temp,SOC,Ah,Wh,Status
-                val parts = str.split(",")
-                if (parts.size >= 7) {
-                    val statusInt = parts[6].toIntOrNull() ?: 0
-                    val reserved = if (parts.size >= 8) parts[7].toIntOrNull() ?: 0 else 0
-                    val parsedTemp = parts[2].toFloatOrNull() ?: 0f
-                    
-                    CoroutineScope(Dispatchers.IO).launch {
-                        _batteryData.update {
-                            it.copy(
-                                voltage = parts[0].toFloatOrNull() ?: 0f,
-                                current = parts[1].toFloatOrNull() ?: 0f,
-                                temperature = parsedTemp,
-                                soc = parts[3].toIntOrNull() ?: 0,
-                                remainingCapacityAh = parts[4].toFloatOrNull() ?: 0f,
-                                remainingEnergyWh = parts[5].toFloatOrNull() ?: 0f,
-                                status = BatteryStatus.values().getOrElse(statusInt) { BatteryStatus.IDLE },
-                                reservedEnergyWh = if (parts.size >= 8) reserved else it.reservedEnergyWh
-                            )
-                        }
-                    }
-                }
-            } else if (bytes.size >= 28) { // Binary struct fallback
+    // ESP32 sends 5 fields: voltage,current,temperature,soc,statusInt
+            val parts = str.split(",")
+            if (parts.size >= 5) {
+                val voltage    = parts[0].toFloatOrNull() ?: 0f
+                val current    = parts[1].toFloatOrNull() ?: 0f
+                val tempRaw    = parts[2].toFloatOrNull() ?: -999f
+                val soc        = parts[3].toIntOrNull()   ?: 0
+                val statusInt  = parts[4].toIntOrNull()   ?: 0
+
+        // Derive remaining capacity/energy from SOC and voltage
+        // (ESP32 does not send Ah/Wh in the BLE packet)
+                val battCapAh  = 15.0f
+                val remAh      = (soc / 100f) * battCapAh
+                val remWh      = remAh * voltage
+
+        CoroutineScope(Dispatchers.IO).launch {
+            _batteryData.update {
+                it.copy(
+                    voltage             = voltage,
+                    current             = current,
+                    temperature         = if (tempRaw <= -999f) it.temperature else tempRaw,
+                    soc                 = soc,
+                    remainingCapacityAh = remAh,
+                    remainingEnergyWh   = remWh,
+                    status              = BatteryStatus.values().getOrElse(statusInt) { BatteryStatus.IDLE }
+                )
+            }
+        }
+    }
+} else if (bytes.size >= 28) { // Binary struct fallback
                  val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
                  val v = buffer.float
                  val i = buffer.float

@@ -33,38 +33,12 @@ import com.example.ui.theme.*
 fun DashboardScreen(viewModel: PowerStationViewModel) {
     val connectionState by viewModel.connectionState.collectAsState()
     val batteryData by viewModel.batteryData.collectAsState()
-    val scanResults by viewModel.scanResults.collectAsState()
     val scrollState = rememberScrollState()
 
-    var showConnectionDialog by remember { mutableStateOf(false) }
-
-    // Automated scanning, auto-connecting, and timeout logic inside the dashboard
-    LaunchedEffect(showConnectionDialog, connectionState) {
-        if (showConnectionDialog) {
-            if (connectionState == ConnectionState.DISCONNECTED) {
-                viewModel.startScan()
-            }
-            if (connectionState == ConnectionState.CONNECTED) {
-                showConnectionDialog = false
-            }
-        }
-    }
-
+    // Automatically trigger scanning on launch or whenever disconnected
     LaunchedEffect(connectionState) {
-        if (connectionState == ConnectionState.SCANNING) {
-            kotlinx.coroutines.delay(10000L)
-            if (viewModel.connectionState.value == ConnectionState.SCANNING) {
-                viewModel.stopScan()
-            }
-        }
-    }
-
-    LaunchedEffect(scanResults, connectionState) {
-        if (showConnectionDialog && connectionState == ConnectionState.SCANNING) {
-            val matching = scanResults.filter { it.isPowerStation }
-            if (matching.size == 1) {
-                viewModel.connectToAddress(matching.first().address)
-            }
+        if (connectionState == ConnectionState.DISCONNECTED) {
+            viewModel.startScan()
         }
     }
 
@@ -76,8 +50,10 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
         TopBar(connectionState) {
             if (connectionState == ConnectionState.CONNECTED) {
                 viewModel.disconnect()
+            } else if (connectionState == ConnectionState.DISCONNECTED) {
+                viewModel.startScan()
             } else {
-                showConnectionDialog = true
+                viewModel.disconnect()
             }
         }
 
@@ -85,7 +61,11 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
 
         if (connectionState != ConnectionState.CONNECTED) {
             DisconnectedHeaderCard(connectionState) {
-                showConnectionDialog = true
+                if (connectionState == ConnectionState.DISCONNECTED) {
+                    viewModel.startScan()
+                } else {
+                    viewModel.disconnect()
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -123,15 +103,6 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
         }
         
         Spacer(modifier = Modifier.height(32.dp))
-    }
-
-    if (showConnectionDialog) {
-        ConnectionDialog(
-            viewModel = viewModel,
-            connectionState = connectionState,
-            scanResults = scanResults,
-            onDismissRequest = { showConnectionDialog = false }
-        )
     }
 }
 
@@ -223,240 +194,88 @@ fun TopBar(connectionState: ConnectionState, onToggle: () -> Unit) {
 }
 
 @Composable
-fun DisconnectedHeaderCard(connectionState: ConnectionState, onConnectClick: () -> Unit) {
+fun DisconnectedHeaderCard(connectionState: ConnectionState, onActionClick: () -> Unit) {
+    val containerColor = when (connectionState) {
+        ConnectionState.SCANNING -> TechBlue.copy(alpha = 0.15f)
+        ConnectionState.CONNECTING -> PowerYellow.copy(alpha = 0.15f)
+        else -> PowerRed.copy(alpha = 0.15f)
+    }
+    
+    val borderColor = when (connectionState) {
+        ConnectionState.SCANNING -> TechBlue.copy(alpha = 0.4f)
+        ConnectionState.CONNECTING -> PowerYellow.copy(alpha = 0.4f)
+        else -> PowerRed.copy(alpha = 0.4f)
+    }
+
+    val iconColor = when (connectionState) {
+        ConnectionState.SCANNING -> TechBlue
+        ConnectionState.CONNECTING -> PowerYellow
+        else -> PowerRed
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
-        colors = CardDefaults.cardColors(containerColor = PowerRed.copy(alpha = 0.15f)),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, PowerRed.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, borderColor)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = "Offline",
-                    tint = PowerRed,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (connectionState == ConnectionState.SCANNING || connectionState == ConnectionState.CONNECTING) {
+                    CircularProgressIndicator(
+                        color = iconColor,
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Offline",
+                        tint = iconColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "PowerStation Disconnected",
+                    text = when (connectionState) {
+                        ConnectionState.SCANNING -> "Scanning for PowerStation..."
+                        ConnectionState.CONNECTING -> "Connecting to PowerStation..."
+                        else -> "PowerStation Disconnected"
+                    },
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = TextPrimary
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Telemetries and prediction systems are offline. Connect to your DIY PowerStation via Bluetooth.",
+                text = when (connectionState) {
+                    ConnectionState.SCANNING -> "Searching for your DIY PowerStation nearby. Please make sure the device is powered on and in range."
+                    ConnectionState.CONNECTING -> "Establishing connection with the discovered PowerStation. Setting up Nordic UART and telemetry services..."
+                    else -> "Telemetries and prediction systems are offline. Connect to your DIY PowerStation via Bluetooth."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = onConnectClick,
-                colors = ButtonDefaults.buttonColors(containerColor = PowerRed),
+                onClick = onActionClick,
+                colors = ButtonDefaults.buttonColors(containerColor = iconColor),
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    text = if (connectionState == ConnectionState.SCANNING) "Scanning..." else "Connect Device",
+                    text = when (connectionState) {
+                        ConnectionState.SCANNING -> "Stop Search"
+                        ConnectionState.CONNECTING -> "Cancel"
+                        else -> "Search & Connect"
+                    },
                     color = Color.White,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ConnectionDialog(
-    viewModel: PowerStationViewModel,
-    connectionState: ConnectionState,
-    scanResults: List<com.example.domain.models.BleDeviceInfo>,
-    onDismissRequest: () -> Unit
-) {
-    androidx.compose.ui.window.Dialog(
-        onDismissRequest = {
-            viewModel.stopScan()
-            onDismissRequest()
-        }
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurfaceVariant),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, Zinc800)
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Connect Device",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    IconButton(onClick = {
-                        viewModel.stopScan()
-                        onDismissRequest()
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Zinc400
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (connectionState == ConnectionState.SCANNING) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        CircularProgressIndicator(
-                            color = Emerald500,
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Scanning for PowerStations...",
-                            color = Emerald400,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else if (connectionState == ConnectionState.CONNECTING) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        CircularProgressIndicator(
-                            color = Emerald500,
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Connecting...",
-                            color = Emerald400,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else {
-                    Button(
-                        onClick = { viewModel.startScan() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Emerald500),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Scan for Devices", color = Color.White)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                if (scanResults.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (connectionState == ConnectionState.SCANNING) "Searching..." else "No devices found yet.",
-                            color = Zinc500,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                } else {
-                    androidx.compose.foundation.lazy.LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 250.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val sortedResults = scanResults.sortedByDescending { it.isPowerStation }
-                        items(sortedResults) { device ->
-                            DialogDeviceRow(device = device, onClick = {
-                                if (connectionState != ConnectionState.CONNECTING) {
-                                    viewModel.connectToAddress(device.address)
-                                }
-                            })
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DialogDeviceRow(device: com.example.domain.models.BleDeviceInfo, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Zinc900),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = device.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = device.address,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Zinc400
-                )
-            }
-            if (device.isPowerStation) {
-                Badge(
-                    containerColor = Emerald500.copy(alpha = 0.2f),
-                    contentColor = Emerald400,
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text("PowerStation", modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${device.rssi} dBm",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Zinc400
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.SignalWifi4Bar,
-                    contentDescription = "Signal",
-                    tint = Zinc400,
-                    modifier = Modifier.size(14.dp)
                 )
             }
         }
