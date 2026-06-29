@@ -115,7 +115,7 @@ fun DashboardScreen(viewModel: PowerStationViewModel) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        StatusCard(status = batteryData.status.name, reserved = batteryData.reservedEnergyWh, powerWatts = batteryData.powerWatts)
+        StatusCard(status = batteryData.status.name, powerWatts = batteryData.powerWatts)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -325,11 +325,11 @@ fun DisconnectedHeaderCard(connectionState: ConnectionState, onActionClick: () -
 }
 
 @Composable
-fun StatusCard(status: String, reserved: Int, powerWatts: Float) {
+fun StatusCard(status: String, powerWatts: Float) {
     val isCharging = status == com.example.domain.models.BatteryStatus.CHARGING.name
-    val color = if (reserved > 0) PowerRed else if (isCharging) Emerald400 else Zinc400
-    val bgColor = if (reserved > 0) PowerRed.copy(alpha=0.1f) else Emerald500.copy(alpha=0.1f)
-    val borderColor = if (reserved > 0) PowerRed.copy(alpha=0.3f) else Emerald500.copy(alpha=0.3f)
+    val color = if (isCharging) Emerald400 else Zinc400
+    val bgColor = if (isCharging) Emerald500.copy(alpha=0.1f) else Zinc500.copy(alpha=0.1f)
+    val borderColor = if (isCharging) Emerald500.copy(alpha=0.3f) else Zinc500.copy(alpha=0.3f)
     
     Row(
         modifier = Modifier
@@ -344,7 +344,7 @@ fun StatusCard(status: String, reserved: Int, powerWatts: Float) {
                 .border(1.dp, borderColor, androidx.compose.foundation.shape.CircleShape)
                 .padding(horizontal = 20.dp, vertical = 6.dp)
         ) {
-            val text = if (reserved > 0) "Reserved ${reserved}Wh" else "${status.replace("_", " ")}"
+            val text = "${status.replace("_", " ")}"
             Text(text = text, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = color)
         }
         Spacer(modifier = Modifier.width(12.dp))
